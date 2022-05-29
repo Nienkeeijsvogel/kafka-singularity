@@ -1,3 +1,4 @@
+Bootstrap: docker
 From: python:3
 %post
   export PYTHONUNBUFFERED=1
