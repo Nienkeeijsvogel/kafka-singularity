@@ -1,2 +1,2 @@
 #!/bin/bash
-docker build -t consumer:latest .
+sudo singularity build singcons.sif sing.def
