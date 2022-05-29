@@ -1,5 +1,3 @@
-from kafka import KafkaConsumer
-from protobuf3.message import Message
 from protobuf3.fields import StringField, Int32Field, MessageField
 import datetime
 
@@ -19,14 +17,22 @@ class Details(Message):
     data = MessageField(field_number=1, repeated=True, message_cls=Transaction)
 details = Details()
 
-
+total = 0
+count = 0
 #listener
 for message in consumer:
     message = message.value
     details.parse_from_bytes(message)
     for d in details.data:
-        date_prod = (datetime.datetime.strptime(d.transaction_datetime,"%Y-%m-%dT%H:%M:%S.%f"))
+        try:
+            date_prod = (datetime.datetime.strptime(d.transaction_datetime,"%Y-%m-%dT%H:%M:%S.%f"))
+        except:
+            continue
         datetime_cons = datetime.datetime.now()
         difference = datetime_cons - date_prod
         elem = str(difference).split(':')[2]
-        print(elem)
+        total = total + float(elem)
+        count = count + 1
+    if count==50000:
+        break
+print(total/count)
