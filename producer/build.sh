@@ -1,2 +1,2 @@
 #!/bin/bash
-docker build -t producer:latest .
+sudo singularity build singprod.sif sing.def
