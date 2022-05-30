@@ -22,7 +22,7 @@ from protobuf3.message import Message
 consumer = KafkaConsumer(
     'mytopic',
     bootstrap_servers=['localhost:19092'])
-
+    
 """schema"""
 class Transaction(Message):
     transaction_id = StringField(field_number=1, required=True)
@@ -47,10 +47,12 @@ for message in consumer:
         except:
             continue
         datetime_cons = datetime.datetime.now()
-                difference = datetime_cons - date_prod
+        difference = datetime_cons - date_prod
         elem = str(difference).split(':')[2]
         total = total + float(elem)
         count = count + 1
-    if count==1000:
+        print(elem)
+    if count==50000:
         break
 print(total/count)
+EOF
