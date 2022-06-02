@@ -2,7 +2,7 @@
 sudo su
 yum update -y 
 yum install -y epel-release
-yum install -y singularity-runtime singularity git socat golang gcc libseccomp-devel
+yum install -y singularity-runtime singularity git socat golang gcc libseccomp-devel make
 git clone https://github.com/sylabs/singularity-cri.git
 cd singularity-cri
 git checkout tags/v1.0.0-beta.6 -b v1.0.0-beta.6
