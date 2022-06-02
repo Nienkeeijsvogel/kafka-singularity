@@ -1,0 +1,59 @@
+#on REDHAT 7 Linux
+sudo su
+yum update -y 
+yum install -y epel-release
+yum install -y singularity-runtime singularity git socat golang gcc libseccomp-devel
+git clone https://github.com/sylabs/singularity-cri.git
+cd singularity-cri
+git checkout tags/v1.0.0-beta.6 -b v1.0.0-beta.6
+make
+make install
+cat <<EOF > /etc/systemd/system/sycri.service
+[Unit]
+Description=Singularity-CRI
+After=network.target
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/usr/local/bin/sycri
+Environment="PATH=/usr/local/libexec/singularity/bin:/bin:/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+Environment="GOPATH=/usr/bin/go"
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl enable sycri
+systemctl start sycri
+setenforce 0
+sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
+# Disable swap
+swapoff -a
+sed -e '/swap/s/^/#/g' -i /etc/fstab
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg	 https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+exclude=kube*
+EOF
+yum install -y kubelet-1.16.7 kubeadm-1.16.7 kubectl-1.16.7 --disableexcludes=kubernetes
+systemctl enable kubelet
+cat > /etc/default/kubelet << EOF
+  KUBELET_EXTRA_ARGS=--container-runtime=remote \
+  --container-runtime-endpoint=unix:///var/run/singularity.sock \
+  --image-service-endpoint=unix:///var/run/singularity.sock
+EOF
+lsmod | grep br_netfilter
+modprobe br_netfilter
+cat <<EOF >  /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+sysctl --system
+systemctl stop firewalld
+
+kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock
