@@ -1,7 +1,7 @@
 #on REDHAT 7 Linux
 sudo su
 yum update -y 
-yum install -y epel-release
+yum install -y epel-release inotify-tools
 yum install -y singularity-runtime singularity git socat golang gcc libseccomp-devel make
 git clone https://github.com/sylabs/singularity-cri.git
 cd singularity-cri
@@ -17,7 +17,7 @@ Type=simple
 Restart=always
 RestartSec=1
 ExecStart=/usr/local/bin/sycri
-Environment="PATH=/usr/local/libexec/singularity/bin:/bin:/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+Environment="PATH=/usr/local/libexec/singularity/bin:/usr/libexec/singularity/bin:/bin:/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 Environment="GOPATH=/usr/bin/go"
 [Install]
 WantedBy=multi-user.target
