@@ -2,7 +2,7 @@ Bootstrap: docker
 From: centos:centos7
 %post
     #on REDHAT 7 Linux:
-cat > /etc/systemd/system/sycri.service <<EOF
+    cat > /etc/systemd/system/sycri.service <<EOF
 [Unit]
 Description=Singularity-CRI
 After=network.target
@@ -12,19 +12,18 @@ Restart=always
 RestartSec=1
 ExecStart=/usr/local/bin/sycri
 Environment="PATH=/usr/local/libexec/singularity/bin:/bin:/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
-Environment="GOPATH=/usr/bin/go"
 [Install]
 WantedBy=multi-user.target
 EOF
     yum update -y 
-    yum install -y epel-release libselinux-utils
+    yum install -y epel-release libselinux-utils supervisor iproute2 iputils-ping ethtool ebtables kmod
+    yum install -y pkg-config less cryptsetup
     yum install -y singularity-runtime singularity git socat golang gcc libseccomp-devel make
     setenforce 0
     sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
     # Disable swap
     swapoff -a
     sed -e '/swap/s/^/#/g' -i /etc/fstab
-    systemctl stop firewalld
     lsmod | grep br_netfilter
     modprobe br_netfilter
     git clone https://github.com/sylabs/singularity-cri.git
@@ -32,8 +31,7 @@ EOF
     git checkout tags/v1.0.0-beta.6 -b v1.0.0-beta.6
     make
     make install
-    systemctl enable sycri
-    systemctl start sycri
+    
     cat > /etc/yum.repos.d/kubernetes.repo <<EOF
 [kubernetes]
 name=Kubernetes
@@ -45,16 +43,39 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg	 https://packages.c
 exclude=kube*
 EOF
     yum install -y kubelet-1.16.7 kubeadm-1.16.7 kubectl-1.16.7 --disableexcludes=kubernetes
-    systemctl enable kubelet
+    
+    rm -rf /var/log/*
+
+    mkdir /etc/supervisor/available.d/
+
+    cat > /etc/supervisor/available.d/singularity-cri.conf <<EOF
+[program:cri]
+command=/usr/local/bin/sycri -v=10
+priority=10
+autostart=true
+startsecs=1
+autorestart=true
+stdout_logfile=/var/log/singularity-cri.out
+stderr_logfile=/var/log/singularity-cri.err
+environment=PATH="/usr/local/libexec/singularity/bin:/bin:/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+EOF
+    ln -s /etc/supervisor/available.d/singularity-cri.conf /etc/supervisor/conf.d/singularity-cri.conf
+    
+    cat > /etc/supervisor/available.d/kubernetes.repo <<EOF
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg	 https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+exclude=kube*
+EOF
+    ln -s /etc/supervisor/available.d/kubernetes.repo /etc/supervisor/conf.d/kubernetes.repo
     cat > /etc/default/kubelet << EOF
 KUBELET_EXTRA_ARGS=--container-runtime=remote \
  --container-runtime-endpoint=unix:///var/run/singularity.sock \
  --image-service-endpoint=unix:///var/run/singularity.sock
 EOF
-    cat >  /etc/sysctl.d/k8s.conf <<EOF
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-net.ipv4.ip_forward = 1
-EOF
-    sysctl --system
-    export KUBECONFIG=/etc/kubernetes/admin.conf
+    
+    
