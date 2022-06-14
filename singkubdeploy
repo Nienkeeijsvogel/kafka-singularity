@@ -1,4 +1,4 @@
-#on REDHAT 7 Linux
+#on CENTOS7
 sudo su
 yum update -y 
 yum install -y epel-release inotify-tools
@@ -39,7 +39,7 @@ repo_gpgcheck=0
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg	 https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 exclude=kube*
 EOF
-yum install -y kubelet-1.16.7 kubeadm-1.16.7 kubectl-1.16.7 --disableexcludes=kubernetes
+yum install -y kubelet-1.21.0 kubeadm-1.21.0 kubectl-1.21.0 --disableexcludes=kubernetes
 systemctl enable kubelet
 cat > /etc/default/kubelet << EOF
   KUBELET_EXTRA_ARGS=--container-runtime=remote \
@@ -59,3 +59,15 @@ systemctl stop firewalld
 kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+chmod +x get_helm.sh
+export PATH=$PATH:/usr/local/bin
+./get_helm.sh
+kubectl create namespace kube-system
+kubectl config set-context $(kubectl config current-context) --namespace=kube-system
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm install kafka-local bitnami/kafka --set persistence.enabled=false,zookeeper.persistence.enabled=false
+
+kubectl run producer --image=neijsvogel/producer:latest --namespace kube-system --command python3 /code/producer.py
+kubectl run consumer --image=neijsvogel/consumer:latest --namespace kube-system --command python3 /code/consumer.py
+kubectl logs --selector=run=consumer --tail 5
