@@ -26,7 +26,6 @@ systemctl enable sycri
 systemctl start sycri
 setenforce 0
 sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
-# Disable swap
 swapoff -a
 sed -e '/swap/s/^/#/g' -i /etc/fstab
 cat <<EOF > /etc/yum.repos.d/kubernetes.repo
@@ -55,19 +54,17 @@ net.ipv4.ip_forward = 1
 EOF
 sysctl --system
 systemctl stop firewalld
-
 kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
-curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/Nienkeeijsvogel/helm/master/scripts/get-helm-3
 chmod +x get_helm.sh
 export PATH=$PATH:/usr/local/bin
 ./get_helm.sh
 kubectl create namespace kube-system
 kubectl config set-context $(kubectl config current-context) --namespace=kube-system
 helm repo add bitnami https://charts.bitnami.com/bitnami
-helm install kafka-local bitnami/kafka --set persistence.enabled=false,zookeeper.persistence.enabled=false
-
-kubectl run producer --image=neijsvogel/producer:latest --namespace kube-system --command python3 /code/producer.py
-kubectl run consumer --image=neijsvogel/consumer:latest --namespace kube-system --command python3 /code/consumer.py
+helm install kafka-local bitnami/kafka --set persistence.enabled=false,zookeeper.persistence.enabled=false --replica 
+kubectl run producer --image neijsvogel/producer:allbrokers --namespace kube-system --command python3 /code/producer.py
+kubectl run consumer --image neijsvogel/consumer:allbrokers --namespace kube-system --command python3 /code/consumer.py
 kubectl logs --selector=run=consumer --tail 5
