@@ -1,3 +1,8 @@
 Average delay of 1000 messages is 0.031177824
 Average delay of 10000 messages is 0.019478579400000088
 Average delay of 100000 messages is 0.01782974785000002
+
+Average delay of 1000 messages is 0.031177824
+Average delay of 10000 messages is 0.019478579400000088
+Average delay of 100000 messages is 0.01782974785000002
+Average delay of 1000000 messages is 0.017598137831999032
