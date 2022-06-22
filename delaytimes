@@ -7,7 +7,7 @@ Average delay of 10000 messages is 0.019478579400000088
 Average delay of 100000 messages is 0.01782974785000002
 Average delay of 1000000 messages is 0.017598137831999032
 
-before producer
+before producer docker
             total        used        free      shared  buff/cache   available
 Mem:       32776376     2965784    24469828       10320     5340764    29397508
 Swap:             0           0           0
