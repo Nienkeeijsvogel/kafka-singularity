@@ -91,6 +91,6 @@ spec:
       image: neijsvogel/producer:localh
     - name: consumer
       image: neijsvogel/consumer:localh
- EOF
- kubectl apply -f pod.yml --namespace=kube-system
+EOF
+kubectl apply -f pod.yml --namespace=kube-system
  
