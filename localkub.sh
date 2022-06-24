@@ -92,5 +92,5 @@ spec:
     - name: consumer
       image: neijsvogel/consumer:localh
 EOF
-kubectl apply -f pod.yml --namespace=kube-system
+kubectl apply -f local-kafka-kuber.yml --namespace=kube-system
  
