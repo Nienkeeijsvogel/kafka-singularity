@@ -88,7 +88,7 @@ spec:
         - name: KAFKA_ADVERTISED_LISTENERS
           value: "PLAINTEXT://:29092"
     - name: producer
-      image: neijsvogel/producer:localh
+      image: neijsvogel/producer:sleep
     - name: consumer
       image: neijsvogel/consumer:localh
 EOF
