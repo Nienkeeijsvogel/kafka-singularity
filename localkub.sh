@@ -67,7 +67,7 @@ export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
 kubectl config set-context --current --namespace=kube-system
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
-
+kubectl config set-context --current --namespace=kube-system
 cat <<EOF > local-kafka-kuber.yml
 apiVersion: v1
 kind: Pod
