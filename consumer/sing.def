@@ -35,8 +35,8 @@ class Details(Message):
     data = MessageField(field_number=1, repeated=True, message_cls=Transaction)
 details = Details()
 
-total = 0
-count = 0
+total,count,adjcount = 0,0,0
+border=5000
 #listener
 for message in consumer:
     message = message.value
@@ -52,7 +52,8 @@ for message in consumer:
         total = total + float(elem)
         count = count + 1
         print(elem)
-    if count==50000:
-        break
-print(total/count)
+    if count==border:
+        print(total/count)
+        print(border)
+        border=border+5000
 EOF
