@@ -36,7 +36,7 @@ class Details(Message):
 details = Details()
 
 total,count,adjcount = 0,0,0
-border=5000
+border=10000
 #listener
 for message in consumer:
     message = message.value
@@ -55,5 +55,5 @@ for message in consumer:
     if count==border:
         print(total/count)
         print(border)
-        border=border+5000
+        border=border+10000
 EOF
