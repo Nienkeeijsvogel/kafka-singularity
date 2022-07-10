@@ -16,7 +16,7 @@ yum install -y yum-utils
 sudo yum-config-manager \
     --add-repo \
     https://download.docker.com/linux/centos/docker-ce.repo
-sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo systemctl start docker
 export VERSION=1.17.6 OS=linux ARCH=amd64 
 wget https://dl.google.com/go/go$VERSION.$OS-$ARCH.tar.gz 
@@ -91,12 +91,31 @@ EOF
 sysctl --system
 systemctl stop firewalld
 
+#configure kubelet and apply calico cni bridge for networking
+#create namespace and apply elevated memory and cpu use
 kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock --ignore-preflight-errors=all
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
-kubectl config set-context --current --namespace=kube-system
+kubectl create namespace kube-system-s
+kubectl config set-context --current --namespace=kube-system-s
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
-kubectl config set-context --current --namespace=kube-system
+
+
+cat <<EOF > elevatedquota.yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mem-cpu-demo
+spec:
+  hard:
+    requests.cpu: "0"
+    requests.memory: 0Gi
+    limits.cpu: "2"
+    limits.memory: 8Gi
+EOF
+
+kubectl apply -f elevatedquota.yaml --namespace=kube-system-d
+
 cat <<EOF > local-kafka-kuber.yml
 apiVersion: v1
 kind: Pod
@@ -121,5 +140,74 @@ spec:
     - name: consumer
       image: neijsvogel/consumer:correctcheck
 EOF
-kubectl apply -f local-kafka-kuber.yml --namespace=kube-system
 
+cat <<EOF > local-kafka-kuber.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka
+spec:
+  containers:
+    - name: zookeeper
+      image: confluentinc/cp-zookeeper:3.3.0-1
+      env:
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "22181"
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+    - name: kafka-broker
+      image: confluentinc/cp-kafka:4.1.2-2
+      env:
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: "localhost:22181"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://:29092"
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+    - name: producer
+      image: neijsvogel/prod:checkcorrect
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+    - name: consumer
+      image: neijsvogel/consumer:correctcheck
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+EOF
+
+kubectl apply -f local-kafka-kuber.yml --namespace=kube-system-d
+
+systemctl stop kubelet
+rm -f /etc/default/kubelet
+systemctl enable docker.service
+sudo systemctl start docker
+systemctl start kubelet
+
+#configure kubelet and apply calico cni bridge for networking
+#apply elevated memory and cpu use
+kubeadm init --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
+export KUBECONFIG=/etc/kubernetes/admin.conf
+kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
+kubectl create namespace kube-system-d
+kubectl config set-context --current --namespace=kube-system-d
+kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
+ 
