@@ -32,6 +32,7 @@ swapoff -a
 sed -e '/swap/s/^/#/g' -i /etc/fstab
 lsmod | grep br_netfilter
 modprobe br_netfilter
+cat <<EOF > /usr/lib/systemd/system/kubelet.service.d/kube
 
 cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
@@ -42,6 +43,28 @@ gpgcheck=1
 repo_gpgcheck=0
 gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg	 https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 exclude=kube*
+EOF
+
+cat <<EOF > /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"]
+}
+EOF
+cat <<EOF > kube.yaml
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+imageMinimumGCAge: 10000m
+imageGCHighThresholdPercent: 100
+#imageGCLowThresholdPercent: 100
+cgroupDriver: systemd
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: ClusterConfiguration
+networking:
+  podSubnet: "192.168.0.0/16" # --pod-network-cidr
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: InitConfiguration
 EOF
 
 yum install -y kubelet-1.21.0 kubeadm-1.21.0 kubectl-1.21.0 --disableexcludes=kubernetes
@@ -62,7 +85,7 @@ EOF
 sysctl --system
 systemctl stop firewalld
 
-kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock --ignore-preflight-errors=all
+kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock --ignore-preflight-errors=all --
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
 
@@ -71,15 +94,29 @@ chmod +x get_helm.sh
 export PATH=$PATH:/usr/local/bin
 ./get_helm.sh
 
-kubectl create namespace kube-system
-kubectl config set-context $(kubectl config current-context) --namespace=kube-system
+kubectl create namespace kube-sing
+kubectl config set-context $(kubectl config current-context) --namespace=kube-sing
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm install kafka-local bitnami/kafka --set persistence.enabled=false,zookeeper.persistence.enabled=false --set replicaCount=3
 
 # Should be run as: kubectl taint nodes {name of instance being run on} node-role.kubernetes.io/master-
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
-kubectl wait pods --for condition=Ready --all --all-namespaces
-kubectl run consumer --image neijsvogel/kafka:kubecons --namespace kube-system --command python3 /code/consumer.py 
-kubectl wait --for=condition=Ready pod/consumer
-kubectl run producer --image neijsvogel/kafka:kubeprod --namespace kube-system --command python3 /code/producer.py
+kubectl run producer --image  neijsvogel/producer:testing --namespace kube-sing --command python3 /code/producer.py kube-sing
+kubectl run consumer --image neijsvogel/consumer:testings --namespace kube-sing --command python3 /code/consumer.py kube-sing
 kubectl logs --selector=run=consumer --tail 5
+
+rm -f /etc/default/kubelet
+systemctl enable docker.service
+sudo systemctl start docker
+ 
+kubeadm init --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
+kubectl create namespace kube-dock
+kubectl config set-context $(kubectl config current-context) --namespace=kube-dock
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm install kafka-local bitnami/kafka --set persistence.enabled=false,zookeeper.persistence.enabled=false --set replicaCount=3
+
+# Should be run as: kubectl taint nodes {name of instance being run on} node-role.kubernetes.io/master-
+kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
+kubectl run producer --image neijsvogel/producer:testing --namespace kube-dock --command python3 /code/producer.py kube-dock
+kubectl run consumer --image neijsvogel/consumer:testings --namespace kube-dock --command python3 /code/consumer.py kube-dock
+
