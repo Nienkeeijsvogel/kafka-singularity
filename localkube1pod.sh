@@ -88,113 +88,48 @@ net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.ip_forward = 1
 EOF
 
+cat <<EOF > local-kafka-kuber.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka
+spec:
+  containers:
+    - name: zookeeper
+      image: confluentinc/cp-zookeeper:3.3.0-1
+      env:
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "22181"
+    - name: kafka-broker
+      image: confluentinc/cp-kafka:4.1.2-2
+      env:
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: "localhost:22181"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://:29092"
+    - name: producer
+      image: neijsvogel/prod:checkcorrect
+    - name: consumer
+      image: neijsvogel/consumer:correctcheck
+EOF
+
 sysctl --system
 systemctl stop firewalld
+
+
 
 #configure kubelet and apply calico cni bridge for networking
 #create namespace and apply elevated memory and cpu use
 kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock --ignore-preflight-errors=all
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
-kubectl create namespace kube-system-s
-kubectl config set-context --current --namespace=kube-system-s
+kubectl create namespace sing-kube
+kubectl config set-context --current --namespace=sing-kube
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
+ 
 
 
-cat <<EOF > elevatedquota.yaml
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: mem-cpu-demo
-spec:
-  hard:
-    requests.cpu: "0"
-    requests.memory: 0Gi
-    limits.cpu: "2"
-    limits.memory: 8Gi
-EOF
-
-kubectl apply -f elevatedquota.yaml --namespace=kube-system-d
-
-cat <<EOF > local-kafka-kuber.yml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: kafka
-spec:
-  containers:
-    - name: zookeeper
-      image: confluentinc/cp-zookeeper:3.3.0-1
-      env:
-        - name: ZOOKEEPER_CLIENT_PORT
-          value: "22181"
-    - name: kafka-broker
-      image: confluentinc/cp-kafka:4.1.2-2
-      env:
-        - name: KAFKA_ZOOKEEPER_CONNECT
-          value: "localhost:22181"
-        - name: KAFKA_ADVERTISED_LISTENERS
-          value: "PLAINTEXT://:29092"
-    - name: producer
-      image: neijsvogel/prod:checkcorrect
-    - name: consumer
-      image: neijsvogel/consumer:correctcheck
-EOF
-
-cat <<EOF > local-kafka-kuber.yml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: kafka
-spec:
-  containers:
-    - name: zookeeper
-      image: confluentinc/cp-zookeeper:3.3.0-1
-      env:
-        - name: ZOOKEEPER_CLIENT_PORT
-          value: "22181"
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-    - name: kafka-broker
-      image: confluentinc/cp-kafka:4.1.2-2
-      env:
-        - name: KAFKA_ZOOKEEPER_CONNECT
-          value: "localhost:22181"
-        - name: KAFKA_ADVERTISED_LISTENERS
-          value: "PLAINTEXT://:29092"
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-    - name: producer
-      image: neijsvogel/prod:checkcorrect
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-    - name: consumer
-      image: neijsvogel/consumer:correctcheck
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-EOF
-
-kubectl apply -f local-kafka-kuber.yml --namespace=kube-system-d
+kubectl apply -f local-kafka-kuber.yml --namespace=sing-kube
 
 systemctl stop kubelet
 rm -f /etc/default/kubelet
@@ -210,4 +145,59 @@ kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
 kubectl create namespace kube-system-d
 kubectl config set-context --current --namespace=kube-system-d
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
+
+
+cat <<EOF > local-kafka-kuber-restrict.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka
+spec:
+  containers:
+    - name: zookeeper
+      image: confluentinc/cp-zookeeper:3.3.0-1
+      env:
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "22181"
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+    - name: kafka-broker
+      image: confluentinc/cp-kafka:4.1.2-2
+      env:
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: "localhost:22181"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://:29092"
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+    - name: producer
+      image: neijsvogel/prod:checkcorrect
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+    - name: consumer
+      image: neijsvogel/consumer:correctcheck
+      resources:
+       requests:
+         memory: "0Mi"
+         cpu: "0m"
+       limits:
+         memory: "2000Mi"
+         cpu: "500m"
+EOF
+ 
  
