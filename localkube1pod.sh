@@ -126,7 +126,7 @@ systemctl stop firewalld
 
 singularity run --env KAFKA_ZOOKEEPER_CONNECT=localhost:12181 --env KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:19092 --writable-tmpfs docker://confluentinc/cp-kafka:4.1.2-2 > /dev/null 2>&1 &
 singularity run --writable-tmpfs --env ZOOKEEPER_CLIENT_PORT=12181 docker://confluentinc/cp-zookeeper:3.3.0-1 > /dev/null 2>&1 &
-sleep 5
+sleep 60
 singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/producer:uni python3 /code/producer.py singularity 10000 > /dev/null 2>&1 &
 singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/consumer:uni python3 /code/consumer.py singularity 10000 
 
@@ -138,7 +138,7 @@ kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
 kubectl create namespace sing-kube
 kubectl config set-context --current --namespace=sing-kube
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
-sleep 5
+sleep 20
 kubectl apply -f local-kafka-kuber-sing.yml --namespace=sing-kube
 
 systemctl stop kubelet
@@ -148,13 +148,13 @@ sudo systemctl start docker
 systemctl start kubelet
 
 docker network create kafka
-docker run -p 39092:39092 --network kafka --hostname kafka --env KAFKA_ZOOKEEPER_CONNECT='zookeeper-1:32181' --env KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://kafka-1:39092' envkafka confluentinc/cp-kafka:4.1.2-2 > /dev/null 2>&1 &
+docker run -p 39092:39092 --network kafka --hostname kafka --env KAFKA_ZOOKEEPER_CONNECT=zookeeper-1:32181 --env KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:39092 confluentinc/cp-kafka:4.1.2-2 > /dev/null 2>&1 &
 docker run -p 32181:32181 --network kafka --env ZOOKEEPER_CLIENT_PORT='32181' --hostname zookeeper-1 confluentinc/cp-zookeeper:3.3.0-1 > /dev/null 2>&1 &
 sleep 5
-docker run --network kafka --env TZ=Europe/Amsterdam python3 neijsvogel/producer:universail /code/producer.py docker 10000 > /dev/null 2>&1 &
-docker run --network kafka --env TZ=Europe/Amsterdam python3 neijsvogel/consumer:universail /code/consumer.py docker 10000 
+docker run --network kafka --env TZ=Europe/Amsterdam neijsvogel/producer:uni python /code/producer.py docker 10000 > /dev/null 2>&1 &
+docker run --network kafka --env TZ=Europe/Amsterdam neijsvogel/consumer:uni python /code/consumer.py docker 10000 
 
-cat <<EOF > local-kafka-kuber.yml
+cat <<EOF > local-kafka-kuber-dock.yml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -165,14 +165,14 @@ spec:
       image: confluentinc/cp-zookeeper:3.3.0-1
       env:
         - name: ZOOKEEPER_CLIENT_PORT
-          value: "22181"
+          value: "42181"
     - name: kafka-broker
       image: confluentinc/cp-kafka:4.1.2-2
       env:
         - name: KAFKA_ZOOKEEPER_CONNECT
-          value: "localhost:22181"
+          value: "localhost:42181"
         - name: KAFKA_ADVERTISED_LISTENERS
-          value: "PLAINTEXT://:29092"
+          value: "PLAINTEXT://:49092"
     - name: producer
       image: neijsvogel/producer:uni
       command: ["/bin/sh"]
@@ -185,13 +185,13 @@ EOF
 
 
 #configure kubelet and apply calico cni bridge for networking
-#apply elevated memory and cpu use
 kubeadm init --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
 export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
-kubectl create namespace kube-system-d
-kubectl config set-context --current --namespace=kube-system-d
+kubectl create namespace dock-kube
+kubectl config set-context --current --namespace=dock-kube
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
-
+sleep 5 
+kubectl apply -f local-kafka-kuber-dock.yml --namespace=dock-kube
  
  
