@@ -88,6 +88,72 @@ net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.ip_forward = 1
 EOF
 
+cat <<EOF > local-kafka-kuber-sing.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka
+spec:
+  containers:
+    - name: zookeeper
+      image: confluentinc/cp-zookeeper:3.3.0-1
+      env:
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "22181"
+    - name: kafka-broker
+      image: confluentinc/cp-kafka:4.1.2-2
+      env:
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: "localhost:22181"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "PLAINTEXT://:29092"
+    - name: producer
+      image: neijsvogel/producer:uni
+      command: ["/bin/sh"]
+      args: ["-c","python /code/producer.py singularitypod 10000"]
+    - name: consumer
+      image: neijsvogel/consumer:uni
+      command: ["/bin/sh"]
+      args: ["-c","python /code/consumer.py singularitypod 10000"]
+EOF
+
+sysctl --system
+systemctl stop firewalld
+
+#commands are singularity singularitykube docker dockerpod dockerkube
+#max messaging
+#image is neijsvogel/consumer:universail
+
+singularity run --env KAFKA_ZOOKEEPER_CONNECT=localhost:12181 --env KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:19092 --writable-tmpfs docker://confluentinc/cp-kafka:4.1.2-2 > /dev/null 2>&1 &
+singularity run --writable-tmpfs --env ZOOKEEPER_CLIENT_PORT=12181 docker://confluentinc/cp-zookeeper:3.3.0-1 > /dev/null 2>&1 &
+sleep 5
+singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/producer:uni python3 /code/producer.py singularity 10000 > /dev/null 2>&1 &
+singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/consumer:uni python3 /code/consumer.py singularity 10000 
+
+#configure kubelet and apply calico cni bridge for networking
+#create namespace and apply elevated memory and cpu use
+kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock --ignore-preflight-errors=all
+export KUBECONFIG=/etc/kubernetes/admin.conf
+kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
+kubectl create namespace sing-kube
+kubectl config set-context --current --namespace=sing-kube
+kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
+sleep 5
+kubectl apply -f local-kafka-kuber-sing.yml --namespace=sing-kube
+
+systemctl stop kubelet
+rm -f /etc/default/kubelet
+systemctl enable docker.service
+sudo systemctl start docker
+systemctl start kubelet
+
+docker network create kafka
+docker run -p 39092:39092 --network kafka --hostname kafka --env KAFKA_ZOOKEEPER_CONNECT='zookeeper-1:32181' --env KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://kafka-1:39092' envkafka confluentinc/cp-kafka:4.1.2-2 > /dev/null 2>&1 &
+docker run -p 32181:32181 --network kafka --env ZOOKEEPER_CLIENT_PORT='32181' --hostname zookeeper-1 confluentinc/cp-zookeeper:3.3.0-1 > /dev/null 2>&1 &
+sleep 5
+docker run --network kafka --env TZ=Europe/Amsterdam python3 neijsvogel/producer:universail /code/producer.py docker 10000 > /dev/null 2>&1 &
+docker run --network kafka --env TZ=Europe/Amsterdam python3 neijsvogel/consumer:universail /code/consumer.py docker 10000 
+
 cat <<EOF > local-kafka-kuber.yml
 apiVersion: v1
 kind: Pod
@@ -108,34 +174,15 @@ spec:
         - name: KAFKA_ADVERTISED_LISTENERS
           value: "PLAINTEXT://:29092"
     - name: producer
-      image: neijsvogel/prod:checkcorrect
+      image: neijsvogel/producer:uni
+      command: ["/bin/sh"]
+      args: ["-c","python /code/producer.py dockerpod 10000"]
     - name: consumer
-      image: neijsvogel/consumer:correctcheck
+      image: neijsvogel/consumer:uni
+      command: ["/bin/sh"]
+      args: ["-c","python /code/consumer.py dockerpod 10000"]
 EOF
 
-sysctl --system
-systemctl stop firewalld
-
-
-
-#configure kubelet and apply calico cni bridge for networking
-#create namespace and apply elevated memory and cpu use
-kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket unix:///var/run/singularity.sock --ignore-preflight-errors=all
-export KUBECONFIG=/etc/kubernetes/admin.conf
-kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml
-kubectl create namespace sing-kube
-kubectl config set-context --current --namespace=sing-kube
-kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
- 
-
-
-kubectl apply -f local-kafka-kuber.yml --namespace=sing-kube
-
-systemctl stop kubelet
-rm -f /etc/default/kubelet
-systemctl enable docker.service
-sudo systemctl start docker
-systemctl start kubelet
 
 #configure kubelet and apply calico cni bridge for networking
 #apply elevated memory and cpu use
@@ -146,58 +193,5 @@ kubectl create namespace kube-system-d
 kubectl config set-context --current --namespace=kube-system-d
 kubectl taint nodes $(hostname) node-role.kubernetes.io/master-
 
-
-cat <<EOF > local-kafka-kuber-restrict.yml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: kafka
-spec:
-  containers:
-    - name: zookeeper
-      image: confluentinc/cp-zookeeper:3.3.0-1
-      env:
-        - name: ZOOKEEPER_CLIENT_PORT
-          value: "22181"
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-    - name: kafka-broker
-      image: confluentinc/cp-kafka:4.1.2-2
-      env:
-        - name: KAFKA_ZOOKEEPER_CONNECT
-          value: "localhost:22181"
-        - name: KAFKA_ADVERTISED_LISTENERS
-          value: "PLAINTEXT://:29092"
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-    - name: producer
-      image: neijsvogel/prod:checkcorrect
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-    - name: consumer
-      image: neijsvogel/consumer:correctcheck
-      resources:
-       requests:
-         memory: "0Mi"
-         cpu: "0m"
-       limits:
-         memory: "2000Mi"
-         cpu: "500m"
-EOF
  
  
