@@ -16,18 +16,15 @@ Average delay of 40000 messages is 0.019946069600000036
 Average delay of 50000 messages is 0.019977130400000057
 
 dock local
+Average delay of 10000 messages is 0.019232506800000004
+Average delay of 20000 messages is 0.019512599599999996
+Average delay of 30000 messages is 0.02072782520000002
+Average delay of 40000 messages is 0.019296944299999914
 
 dock kube
+Average delay of 10000 messages is 0.01970066879999998
+Average delay of 10000 messages is 0.019918881900000015
+Average delay of 20000 messages is 0.018484449399999974
+Average delay of 30000 messages is 0.019155489600000044
+Average delay of 40000 messages is 0.01913815370000007
 
-4gb4cpu
-
-sing local
-Average delay of 10000 messages is 0.019276586900000104
-Average delay of 20000 messages is 0.018207754000000034
-Average delay of 30000 messages is 0.01943757850000009
-
-singkube
-Average delay of 10000 messages is 0.02825023760000003
-Average delay of 20000 messages is 0.027939095300000008
-Average delay of 30000 messages is 0.027764726800000056
-Average delay of 40000 messages is 0.02600783079999997
