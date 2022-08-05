@@ -1,0 +1,33 @@
+8gb8cpu
+
+sing local
+Average delay of 10000 messages is 0.017088577800000036
+Average delay of 20000 messages is 0.01631251829999992
+Average delay of 30000 messages is 0.016971953399999986
+Average delay of 40000 messages is 0.0163318633999999
+Average delay of 50000 messages is 0.016654592599999993
+Average delay of 60000 messages is 0.016265174199999944
+
+sing kube
+Average delay of 10000 messages is 0.02388447559999995
+Average delay of 20000 messages is 0.020004736999999998
+Average delay of 30000 messages is 0.01980751539999998
+Average delay of 40000 messages is 0.019946069600000036
+Average delay of 50000 messages is 0.019977130400000057
+
+dock local
+
+dock kube
+
+4gb4cpu
+
+sing local
+Average delay of 10000 messages is 0.019276586900000104
+Average delay of 20000 messages is 0.018207754000000034
+Average delay of 30000 messages is 0.01943757850000009
+
+singkube
+Average delay of 10000 messages is 0.02825023760000003
+Average delay of 20000 messages is 0.027939095300000008
+Average delay of 30000 messages is 0.027764726800000056
+Average delay of 40000 messages is 0.02600783079999997
