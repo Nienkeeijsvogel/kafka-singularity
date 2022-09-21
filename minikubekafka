@@ -1,0 +1,13 @@
+sudo apt-get update
+ sudo apt-get install \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+ 
+ 
+ 
+ go get github.com/opencontainers/runc@c61c7370f960
+go get -d github.com/opencontainers/runc@c61c7370f960
+
+ 
