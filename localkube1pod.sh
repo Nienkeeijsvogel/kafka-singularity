@@ -110,11 +110,11 @@ spec:
     - name: producer
       image: neijsvogel/producer:uni
       command: ["/bin/sh"]
-      args: ["-c","python /code/producer.py singularitypod 10000"]
+      args: ["-c","python /code/producer.py singularitypod 100000"]
     - name: consumer
       image: neijsvogel/consumer:uni
       command: ["/bin/sh"]
-      args: ["-c","python /code/consumer.py singularitypod 10000"]
+      args: ["-c","python /code/consumer.py singularitypod 100000"]
 EOF
 
 sysctl --system
@@ -175,11 +175,11 @@ spec:
     - name: producer
       image: neijsvogel/producer:uni
       command: ["/bin/sh"]
-      args: ["-c","python /code/producer.py dockerpod 10000"]
+      args: ["-c","python /code/producer.py dockerpod 100000"]
     - name: consumer
       image: neijsvogel/consumer:uni
       command: ["/bin/sh"]
-      args: ["-c","python /code/consumer.py dockerpod 10000"]
+      args: ["-c","python /code/consumer.py dockerpod 100000"]
 EOF
 
 
