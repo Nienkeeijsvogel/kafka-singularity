@@ -127,8 +127,8 @@ systemctl stop firewalld
 singularity run --env KAFKA_ZOOKEEPER_CONNECT=localhost:12181 --env KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:19092 --writable-tmpfs docker://confluentinc/cp-kafka:4.1.2-2 > /dev/null 2>&1 &
 singularity run --writable-tmpfs --env ZOOKEEPER_CLIENT_PORT=12181 docker://confluentinc/cp-zookeeper:3.3.0-1 > /dev/null 2>&1 &
 sleep 60
-singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/producer:uni python3 /code/producer.py singularity 10000 > /dev/null 2>&1 &
-singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/consumer:uni python3 /code/consumer.py singularity 10000 
+singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/producer:uni python3 /code/producer.py singularity 100000 > /dev/null 2>&1 &
+singularity exec --env TZ=Europe/Amsterdam docker://neijsvogel/consumer:uni python3 /code/consumer.py singularity 100000 
 
 #configure kubelet and apply calico cni bridge for networking
 #create namespace and apply elevated memory and cpu use
